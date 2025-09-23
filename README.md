@@ -75,7 +75,8 @@ Das Skript veröffentlicht Daten auf den folgenden MQTT-Topics. Der erste Teil d
 
 ### Hintergrund-Ausführung mit `tmux`
 
-Um sicherzustellen, dass das Skript auch nach dem Beenden deiner Terminal-Sitzung weiterläuft, ist die Verwendung von `tmux` eine hervorragende Methode.
+Um sicherzustellen, dass das Skript auch nach dem Beenden deiner Terminal-Sitzung weiterläuft,
+ist die Verwendung von `tmux` eine hervorragende Methode.
 
 1.  **Neue `tmux`-Session erstellen:**
     ```bash
