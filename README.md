@@ -60,7 +60,8 @@ Dieses Skript ist für die Überwachung von Akku-Informationen konzipiert und se
 
 ### MQTT-Topics
 
-Das Skript veröffentlicht Daten auf den folgenden MQTT-Topics. Der erste Teil des Topic-Pfads, z. B. `tablet`, kann direkt im Skript an deine Bedürfnisse angepasst werden, um es beispielsweise für ein Handy (`handy`) oder ein Android-Gerät (`android`) zu verwenden.
+Das Skript veröffentlicht Daten auf den folgenden MQTT-Topics. Der erste Teil des Topic-Pfads, z. B. `tablet`,
+kann direkt im Skript an deine Bedürfnisse angepasst werden, um es beispielsweise für ein Handy (`handy`) oder ein Android-Gerät (`android`) zu verwenden.
 
 * `tablet/battery_level`
 * `tablet/battery_temperature`
