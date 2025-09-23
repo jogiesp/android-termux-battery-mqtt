@@ -97,7 +97,9 @@ Um sicherzustellen, dass das Skript auch nach dem Beenden deiner Terminal-Sitzun
 
 ### Home Assistant
 
-Du kannst die Akku-Daten ganz einfach in Home Assistant integrieren, indem du die folgenden Sensoren zu deiner `configuration.yaml`-Datei hinzufügst.
+Du kannst die Akku-Daten ganz einfach in Home Assistant integrieren,
+indem du die folgenden Sensoren zu deiner `configuration.yaml`
+Datei hinzufügst.
 
 ```yaml
 mqtt:
@@ -131,15 +133,22 @@ mqtt:
 
 🏠 ioBroker-Integration
 
-ioBroker verwendet eine grafische Benutzeroberfläche zur Konfiguration, daher gibt es hier keine Code-Blöcke zum Kopieren, wie sie bei Home Assistant verwendet werden. Stattdessen musst du den MQTT-Adapter in ioBroker konfigurieren, um die Daten zu empfangen.
+ioBroker verwendet eine grafische Benutzeroberfläche zur Konfiguration, daher gibt es hier keine
+Code-Blöcke zum Kopieren, wie sie bei Home Assistant verwendet werden. Stattdessen musst du den
+MQTT-Adapter in ioBroker konfigurieren, um die Daten zu empfangen.
 
 Schritt-für-Schritt-Anleitung
 
     MQTT-Adapter installieren:
-    Navigiere in ioBroker zum Reiter "Adapter" und suche nach dem MQTT-Adapter. Klicke auf die Schaltfläche, um ihn zu installieren.
+    Navigiere in ioBroker zum Reiter "Adapter" und suche nach dem MQTT-Adapter. Klicke auf die
+    Schaltfläche,um ihn zu installieren.
 
     Adapter-Instanz konfigurieren:
-    Sobald die Installation abgeschlossen ist, klicke auf die Schaltfläche "Neue Instanz hinzufügen". Wähle in den Einstellungen "Client/subscriber" und gib die IP-Adresse und den Port deines MQTT-Brokers an, den du auch in deinem Python-Skript nutzt.
+    Sobald die Installation abgeschlossen ist, klicke auf die Schaltfläche "Neue Instanz hinzufügen".
+    Wähle in den Einstellungen "Client/subscriber" und gib die IP-Adresse und den Port deines
+    MQTT-Brokers an, den du auch in deinem Python-Skript nutzt.
 
     Datenpunkte anzeigen:
-    Sobald der Adapter läuft und das Skript Daten sendet, erstellt ioBroker automatisch Datenpunkte unter dem Objektbaum mqtt.0. Du kannst die Datenpunkte dann unter dem Reiter "Objekte" finden und in Visualisierungen, Skripten oder Automatisierungen verwenden.
+    Sobald der Adapter läuft und das Skript Daten sendet, erstellt ioBroker automatisch Datenpunkte
+    unter dem Objektbaum mqtt.0. Du kannst die Datenpunkte dann unter dem Reiter "Objekte" finden und
+    in Visualisierungen, Skripten oder Automatisierungen verwenden.
