@@ -3,7 +3,7 @@ import json
 import paho.mqtt.client as mqtt
 import time
 
-broker = '192.168.178.37'
+broker = '192.168.xxx.xx'
 port = 1883
 
 def format_value(value, max_chars=4):
