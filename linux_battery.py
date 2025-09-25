@@ -18,7 +18,7 @@ BROKER_IP = "192.168.1xx.xx"
 BROKER_PORT = "1883" 
 
 # 3. Das MQTT-Topic, an das gesendet werden soll
-MQTT_TOPIC = "jogi/laptop/battery/percent"
+MQTT_TOPIC = "mydevices/laptop/battery/percent"
 
 # =================================================================
 #                     2. FUNKTIONEN ZUM AUSLESEN
