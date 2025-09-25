@@ -1,7 +1,7 @@
 import json
-import paho.mqtt.client as mqtt
 import time
 import os
+import subprocess
 
 # --- MQTT-Konfiguration ---
 # HINWEIS: Bitte passe diese Werte an deinen MQTT-Broker an!
@@ -61,7 +61,7 @@ def format_value(value, max_chars=4):
 def send_battery_info():
     """
     Ruft die Batteriestatusinformationen ab, formatiert sie und sendet sie
-    über MQTT an den Broker.
+    über den 'mosquitto_pub' Befehl an den Broker.
     """
     try:
         # Ruft die Batteriedaten für Linux ab.
@@ -77,28 +77,28 @@ def send_battery_info():
             'current_mA': format_value(battery.get('current_mA'))
         }
 
-        # Stellt eine Verbindung zum MQTT-Broker her.
-        client = mqtt.Client()
-        client.connect(broker, port, 60)
+        # Veröffentlicht die Daten mit 'mosquitto_pub'.
+        # WICHTIG: Stelle sicher, dass das Paket 'mosquitto-clients' installiert ist.
+        topics = {
+            'linux/battery_level': str(formatted_values['percentage']),
+            'linux/battery_temperature': str(formatted_values['temperature']),
+            'linux/battery_health': str(formatted_values['health']),
+            'linux/battery_plugged': str(formatted_values['plugged']),
+            'linux/battery_status': str(formatted_values['status']),
+            'linux/battery_current_mA': str(formatted_values['current_mA']),
+        }
 
-        # Veröffentlicht die Daten auf den entsprechenden MQTT-Themen.
-        # Die Themen beginnen mit 'linux/', können aber angepasst werden.
-        client.publish('linux/battery_level', str(formatted_values['percentage']))
-        client.publish('linux/battery_temperature', str(formatted_values['temperature']))
-        client.publish('linux/battery_health', str(formatted_values['health']))
-        client.publish('linux/battery_plugged', str(formatted_values['plugged']))
-        client.publish('linux/battery_status', str(formatted_values['status']))
-        client.publish('linux/battery_current_mA', str(formatted_values['current_mA']))
-
-        # Trennt die Verbindung zum Broker.
-        client.disconnect()
+        for topic, message in topics.items():
+            subprocess.run(['mosquitto_pub', '-h', broker, '-p', str(port), '-t', topic, '-m', message], check=True)
 
         print("Daten gesendet:", formatted_values)
 
-    except FileNotFoundError as e:
-        print(f"Fehler: {e}. Konnte keine Batteriedaten finden. Läuft der Skript auf einem Laptop?")
+    except FileNotFoundError:
+        print("Fehler: Konnte 'mosquitto_pub' nicht finden. Ist 'mosquitto-clients' installiert?")
+    except subprocess.CalledProcessError as e:
+        print(f"Fehler beim Ausführen von 'mosquitto_pub': {e}")
     except Exception as e:
-        print("Fehler bei MQTT-Verbindung oder Datenverarbeitung:", e)
+        print("Ein unerwarteter Fehler ist aufgetreten:", e)
 
 if __name__ == "__main__":
     # Hauptprogramm, das die Funktion in einer Endlosschleife ausführt.
