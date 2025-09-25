@@ -1,109 +1,102 @@
-import json
-import time
-import os
 import subprocess
+import os
+import re
+import sys
 
-# --- MQTT-Konfiguration ---
-# HINWEIS: Bitte passe diese Werte an deinen MQTT-Broker an!
-# Die IP-Adresse deines MQTT-Brokers.
-broker = '192.168.xxx.xx'
-# Der Port deines MQTT-Brokers. Standard ist 1883.
-port = 1883
+# =================================================================
+#                         1. KONFIGURATION
+#    DIESE DREI WERTE MUSST DU AN DEINE UMGEBUNG ANPASSEN!
+# =================================================================
 
-def get_battery_info_linux():
+# 1. Der absolute Pfad zu mosquitto_pub (Typischerweise /usr/bin/mosquitto_pub)
+#    (Löst den Fehler "Konnte 'mosquitto_pub' nicht finden.")
+MOSQUITTO_PUB_PATH = "/usr/bin/mosquitto_pub" 
+
+# 2. Deine Broker-IP und Port
+#    (Löst den Fehler "Connection refused.")
+BROKER_IP = "192.168.1xx.xx"
+BROKER_PORT = "1883" 
+
+# 3. Das MQTT-Topic, an das gesendet werden soll
+MQTT_TOPIC = "jogi/laptop/battery/percent"
+
+# =================================================================
+#                     2. FUNKTIONEN ZUM AUSLESEN
+# =================================================================
+
+def get_battery_level():
     """
-    Ruft die Batteriestatusinformationen von einem Linux-System ab,
-    indem die Dateien im sysfs-Dateisystem gelesen werden.
-    """
-    # Sucht nach dem ersten Batterieverzeichnis.
-    battery_path = '/sys/class/power_supply/'
-    batteries = [d for d in os.listdir(battery_path) if d.startswith('BAT')]
-    if not batteries:
-        raise FileNotFoundError("Keine Batterie gefunden unter /sys/class/power_supply/")
-
-    # Verwendet die erste gefundene Batterie.
-    battery_dir = os.path.join(battery_path, batteries[0])
-
-    # Liest die Werte aus den Dateien.
-    with open(os.path.join(battery_dir, 'capacity')) as f:
-        percentage = int(f.read().strip())
-
-    with open(os.path.join(battery_dir, 'status')) as f:
-        status = f.read().strip()
-
-    try:
-        with open(os.path.join(battery_dir, 'temp')) as f:
-            # Temperatur wird oft in Tausendstel Grad Celsius angegeben.
-            temperature = int(f.read().strip()) / 1000
-    except FileNotFoundError:
-        # Einige Systeme melden keine Temperatur.
-        temperature = 0
-
-    return {
-        'health': 'unbekannt',  # Nicht direkt aus sysfs abrufbar
-        'percentage': percentage,
-        'plugged': 'unbekannt', # Muss über 'status' abgeleitet werden
-        'status': status,
-        'temperature': temperature,
-        'current_mA': 0  # Nicht direkt abrufbar
-    }
-
-def format_value(value, max_chars=4):
-    """
-    Formatiert einen numerischen Wert, um sicherzustellen, dass er nicht zu lang ist.
-    Schneidet den Wert ab, wenn er die maximale Zeichenzahl überschreitet.
-    """
-    s = f"{value:.4g}"
-    if len(s) > max_chars:
-        s = s[:max_chars]
-    return s
-
-def send_battery_info():
-    """
-    Ruft die Batteriestatusinformationen ab, formatiert sie und sendet sie
-    über den 'mosquitto_pub' Befehl an den Broker.
+    Liest den aktuellen Batterieladestand in Prozent von /sys/class/power_supply aus.
     """
     try:
-        # Ruft die Batteriedaten für Linux ab.
-        battery = get_battery_info_linux()
-
-        formatted_values = {
-            'health': battery.get('health', 'unbekannt'),
-            'percentage': format_value(battery.get('percentage')),
-            # Leitet den 'plugged' Status aus dem 'status' ab.
-            'plugged': 'ja' if battery.get('status') in ['Charging', 'Full'] else 'nein',
-            'status': battery.get('status', 'unbekannt'),
-            'temperature': format_value(battery.get('temperature')),
-            'current_mA': format_value(battery.get('current_mA'))
-        }
-
-        # Veröffentlicht die Daten mit 'mosquitto_pub'.
-        # WICHTIG: Stelle sicher, dass das Paket 'mosquitto-clients' installiert ist.
-        topics = {
-            'linux/battery_level': str(formatted_values['percentage']),
-            'linux/battery_temperature': str(formatted_values['temperature']),
-            'linux/battery_health': str(formatted_values['health']),
-            'linux/battery_plugged': str(formatted_values['plugged']),
-            'linux/battery_status': str(formatted_values['status']),
-            'linux/battery_current_mA': str(formatted_values['current_mA']),
-        }
-
-        for topic, message in topics.items():
-            subprocess.run(['mosquitto_pub', '-h', broker, '-p', str(port), '-t', topic, '-m', message], check=True)
-
-        print("Daten gesendet:", formatted_values)
-
+        # Pfad zum Akku-Status (kann variieren, oft BAT0 oder BAT1)
+        # Wir suchen nach einem Verzeichnis, das mit 'BAT' beginnt
+        battery_dir = next(d for d in os.listdir('/sys/class/power_supply/') if d.startswith('BAT'))
+        status_path = f"/sys/class/power_supply/{battery_dir}/capacity"
+        
+        with open(status_path, 'r') as f:
+            percent = f.read().strip()
+            return int(percent)
+            
+    except StopIteration:
+        print("Fehler: Konnte keinen Akku unter /sys/class/power_supply/ finden.")
+        return None
     except FileNotFoundError:
-        print("Fehler: Konnte 'mosquitto_pub' nicht finden. Ist 'mosquitto-clients' installiert?")
-    except subprocess.CalledProcessError as e:
-        print(f"Fehler beim Ausführen von 'mosquitto_pub': {e}")
+        print(f"Fehler: Konnte die Kapazitätsdatei nicht finden ({status_path}).")
+        return None
     except Exception as e:
-        print("Ein unerwarteter Fehler ist aufgetreten:", e)
+        print(f"Ein unerwarteter Fehler beim Auslesen der Batterie trat auf: {e}")
+        return None
+
+# =================================================================
+#                       3. MQTT-VERÖFFENTLICHUNG
+# =================================================================
+
+def publish_mqtt(message):
+    """
+    Sendet die Nachricht mit mosquitto_pub an den MQTT-Broker.
+    """
+    try:
+        # Die Argumente für mosquitto_pub
+        command = [
+            MOSQUITTO_PUB_PATH, # Der absolute Pfad!
+            '-h', BROKER_IP,
+            '-p', BROKER_PORT,
+            '-t', MQTT_TOPIC,
+            '-m', str(message), # Die Nachricht (Batterieprozent)
+            '-q', '1',
+            '-r' # Retain Flag: Behält den letzten Wert auf dem Broker
+        ]
+
+        # Führt den Befehl aus
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        print(f"Erfolgreich gesendet: Topic='{MQTT_TOPIC}', Wert='{message}'")
+
+    except FileNotFoundError:
+        # Tritt auf, wenn MOSQUITTO_PUB_PATH falsch ist
+        print(f"FATALER FEHLER: Konnte '{MOSQUITTO_PUB_PATH}' nicht finden.")
+        print("Bitte prüfen Sie, ob der Pfad in der Konfiguration korrekt ist.")
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        # Tritt auf, wenn mosquitto_pub einen Fehler meldet (z.B. Connection Refused)
+        print("Fehler beim Senden der MQTT-Nachricht (mosquitto_pub Fehlercode):")
+        print(f"STDOUT: {e.stdout}")
+        print(f"STDERR: {e.stderr}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Ein unbekannter Fehler beim Senden trat auf: {e}")
+        sys.exit(1)
+
+
+# =================================================================
+#                           4. HAUPTPROGRAMM
+# =================================================================
 
 if __name__ == "__main__":
-    # Hauptprogramm, das die Funktion in einer Endlosschleife ausführt.
-    while True:
-        send_battery_info()
-        # Wartet 30 Sekunden, bevor die Funktion erneut ausgeführt wird.
-        # Du kannst diesen Wert an deine Bedürfnisse anpassen.
-        time.sleep(30)
+    
+    battery_percent = get_battery_level()
+
+    if battery_percent is not None:
+        publish_mqtt(battery_percent)
+    else:
+        print("Skript beendet, da der Batteriestand nicht ermittelt werden konnte.")
